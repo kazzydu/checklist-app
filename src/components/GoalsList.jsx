@@ -1,4 +1,4 @@
-import { Plus, Target, Calendar, Trash2, ChevronRight } from "lucide-react";
+import { Plus, Target, Calendar, Trash2, ChevronRight, Trophy } from "lucide-react";
 import { useState } from "react";
 
 export default function GoalsList({
@@ -164,13 +164,16 @@ export default function GoalsList({
               : 0;
 
           const isConfirming = confirmDeleteId === goal.id;
+          const isAchieved = goal.achieved;
 
           return (
             <div
               key={goal.id}
               onClick={() => onViewGoal(goal.id)}
               className={`rounded-2xl border shadow-sm p-4 cursor-pointer transition-all duration-200 hover:shadow-md ${
-                darkMode
+                isAchieved
+                  ? 'bg-gradient-to-r from-amber-50 to-orange-50 border-amber-200 dark:from-amber-950/20 dark:to-orange-950/20 dark:border-amber-800'
+                  : darkMode
                   ? "bg-gray-800 border-gray-700 hover:border-gray-600"
                   : "bg-white border-gray-200 hover:border-gray-300"
               }`}
@@ -201,6 +204,9 @@ export default function GoalsList({
                       {goal.name}
                     </h3>
                     <div className="flex items-center gap-1 flex-shrink-0">
+                      {isAchieved && (
+                        <Trophy size={16} className="text-amber-500" />
+                      )}
                       {!isPro && isConfirming && (
                         <div className="flex items-center gap-1 mr-1">
                           <button
@@ -316,11 +322,20 @@ export default function GoalsList({
                   {(goal.milestones || []).length > 0 && (
                     <p
                       className={`text-xs mt-2 ${
-                        darkMode ? "text-gray-500" : "text-gray-400"
+                        isAchieved
+                          ? 'text-amber-600 dark:text-amber-400 font-semibold'
+                          : darkMode ? "text-gray-500" : "text-gray-400"
                       }`}
                     >
-                      {milestoneCount.completed}/{milestoneCount.total}{" "}
-                      {labels.milestones}
+                      {isAchieved
+                        ? lang === 'es'
+                          ? `Logrado ${goal.achievedAt ? `el ${new Date(goal.achievedAt).toLocaleDateString()}` : ''}`
+                          : `Achieved${goal.achievedAt ? ` on ${new Date(goal.achievedAt).toLocaleDateString()}` : ''}`
+                        : <>
+                          {milestoneCount.completed}/{milestoneCount.total}{" "}
+                          {labels.milestones}
+                        </>
+                      }
                     </p>
                   )}
                 </div>

@@ -11,6 +11,7 @@ import {
   Save,
   X,
   Calendar,
+  Trophy,
 } from 'lucide-react';
 
 const TOTAL_WEEKS = 12;
@@ -81,6 +82,16 @@ function GoalDetail({ goal, darkMode, onBack, onUpdateGoal, currentWeek, lang })
       default:
         return darkMode ? 'text-gray-400' : 'text-gray-500';
     }
+  };
+
+  const handleMarkAchieved = () => {
+    const achieved = !goal.achieved;
+    const achievedAt = achieved ? new Date().toISOString() : null;
+    onUpdateGoal({
+      ...goal,
+      achieved,
+      achievedAt,
+    });
   };
 
   const handleSaveGoal = () => {
@@ -314,6 +325,40 @@ function GoalDetail({ goal, darkMode, onBack, onUpdateGoal, currentWeek, lang })
               />
             </div>
           </div>
+
+          {/* Achieve Button */}
+          <button
+            onClick={handleMarkAchieved}
+            className={`w-full mt-3 flex items-center justify-center gap-2 py-3 rounded-xl font-semibold text-sm transition-all duration-200 ${
+              goal.achieved
+                ? 'bg-gradient-to-r from-amber-400 to-orange-500 text-white shadow-lg shadow-amber-500/25'
+                : progress === 100
+                ? 'bg-gradient-to-r from-emerald-500 to-teal-500 text-white shadow-lg shadow-emerald-500/25 animate-pulse'
+                : darkMode
+                ? 'bg-gray-700 text-gray-400 border border-gray-600 hover:border-amber-500 hover:text-amber-400'
+                : 'bg-gray-100 text-gray-500 border border-gray-200 hover:border-amber-400 hover:text-amber-600'
+            }`}
+          >
+            <Trophy size={18} />
+            {goal.achieved
+              ? lang === 'es'
+                ? 'Logrado!'
+                : 'Achieved!'
+              : progress === 100
+              ? lang === 'es'
+                ? 'Marcar como Logrado'
+                : 'Mark as Achieved'
+              : lang === 'es'
+              ? 'Marcar cuando se complete'
+              : 'Mark when complete'}
+          </button>
+          {goal.achieved && goal.achievedAt && (
+            <p className={`text-center text-xs mt-2 ${textMuted}`}>
+              {lang === 'es'
+                ? `Logrado el ${new Date(goal.achievedAt).toLocaleDateString()}`
+                : `Achieved on ${new Date(goal.achievedAt).toLocaleDateString()}`}
+            </p>
+          )}
         </div>
 
         {/* Milestones */}

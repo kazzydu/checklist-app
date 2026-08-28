@@ -14,10 +14,8 @@ import {
   Trophy,
 } from 'lucide-react';
 
-const TOTAL_WEEKS = 12;
-
 function GoalDetail({ goal, darkMode, onBack, onUpdateGoal, currentWeek, lang }) {
-  const [editMode, setEditMode] = useState(false);
+  const [editMode, _setEditMode] = useState(false);
   const [editName, setEditName] = useState(goal.name);
   const [editDescription, setEditDescription] = useState(goal.description || '');
   const [expandedMilestones, setExpandedMilestones] = useState(
@@ -25,7 +23,6 @@ function GoalDetail({ goal, darkMode, onBack, onUpdateGoal, currentWeek, lang })
   );
 
   const [newMilestone, setNewMilestone] = useState(null);
-  const [editingMilestone, setEditingMilestone] = useState(null);
   const [editingTask, setEditingTask] = useState(null);
 
   const [editingGoal, setEditingGoal] = useState(false);
@@ -69,19 +66,6 @@ function GoalDetail({ goal, darkMode, onBack, onUpdateGoal, currentWeek, lang })
     if (diff <= 1) return 'urgent';
     if (diff <= 2) return 'approaching';
     return 'normal';
-  };
-
-  const urgencyColor = (urgency) => {
-    switch (urgency) {
-      case 'overdue':
-        return darkMode ? 'text-red-400' : 'text-red-600';
-      case 'urgent':
-        return darkMode ? 'text-orange-400' : 'text-orange-600';
-      case 'approaching':
-        return darkMode ? 'text-yellow-400' : 'text-yellow-600';
-      default:
-        return darkMode ? 'text-gray-400' : 'text-gray-500';
-    }
   };
 
   const handleMarkAchieved = () => {
@@ -139,7 +123,6 @@ function GoalDetail({ goal, darkMode, onBack, onUpdateGoal, currentWeek, lang })
 
   const handleAddTask = (milestoneId) => {
     const id = Date.now().toString();
-    const milestone = goal.milestones.find((m) => m.id === milestoneId);
     const updatedMilestones = goal.milestones.map((m) => {
       if (m.id === milestoneId) {
         return {

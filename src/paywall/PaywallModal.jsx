@@ -1,9 +1,9 @@
 import { useState } from 'react';
-import { X, Check, Sparkles, Crown, ArrowRight, RotateCcw, ExternalLink } from 'lucide-react';
+import { X, Sparkles, Crown, ArrowRight, RotateCcw, ExternalLink } from 'lucide-react';
 import { useSubscription } from './RevenueCatProvider';
 import { PRODUCTS, PRO_FEATURES, LEMON_SQUEEZY_CHECKOUT } from './config';
 
-export default function PaywallModal({ open, onClose, darkMode, lang }) {
+export default function PaywallModal({ open, onClose, darkMode }) {
   const { restorePurchases } = useSubscription();
   const [selectedPlan, setSelectedPlan] = useState('yearly');
   const [restoring, setRestoring] = useState(false);
@@ -39,7 +39,7 @@ export default function PaywallModal({ open, onClose, darkMode, lang }) {
       } else {
         setError('No previous purchases found.');
       }
-    } catch (e) {
+    } catch {
       setError('Restore failed. Please try again.');
     } finally {
       setRestoring(false);

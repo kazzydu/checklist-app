@@ -22,14 +22,6 @@ import Logo from './components/Logo';
 const getStoredDuration = () => parseInt(localStorage.getItem('msm_duration') || '3', 10);
 const START_DATE = new Date();
 const getEndDate = (months) => { const d = new Date(START_DATE); d.setMonth(d.getMonth() + months); return d; };
-const END_DATE = getEndDate(getStoredDuration());
-const TOTAL_DAYS = Math.ceil((END_DATE - START_DATE) / (1000 * 60 * 60 * 24));
-const TOTAL_WEEKS = Math.ceil(TOTAL_DAYS / 7);
-
-const getWeekNumber = (date) => {
-  const diff = Math.ceil((date - START_DATE) / (1000 * 60 * 60 * 24 * 7));
-  return Math.max(1, Math.min(diff + 1, TOTAL_WEEKS));
-};
 
 const calcGpa = (grades) => {
   if (!grades?.length) return '0.00';
@@ -48,7 +40,7 @@ export default function App() {
 }
 
 function AppInner() {
-  const { isPro, loading: subLoading } = useSubscription();
+  const { isPro } = useSubscription();
   const [showPaywall, setShowPaywall] = useState(false);
   const [goals, setGoals] = useState([]);
   const [checkedItems, setCheckedItems] = useState({});
@@ -140,7 +132,7 @@ function AppInner() {
       setDailyGoalHistory(JSON.parse(localStorage.getItem('allOnDeckDailyGoalHistory') || '{}'));
       setCompletionLog(JSON.parse(localStorage.getItem('allOnDeckCompletionLog') || '[]'));
       setStreak(parseInt(localStorage.getItem('allOnDeckStreak')) || 0);
-    } catch (e) {}
+    } catch {}
   }, []);
 
   // ── Data migration on mount ──
@@ -338,12 +330,6 @@ function AppInner() {
 
   // ── Streak tracking ──
   useEffect(() => {
-    const allTasks = goals.flatMap((g) =>
-      (g.milestones || []).flatMap((m) => m.tasks || [])
-    );
-    const total = allTasks.length;
-    const done = allTasks.filter((t) => t.done).length;
-
     const today = new Date().toDateString();
     const lv = localStorage.getItem('allOnDeckLastVisit');
     if (lv && lv !== today) {
@@ -364,10 +350,9 @@ function AppInner() {
     localStorage.setItem('allOnDeckLastVisit', today);
 
     return () => {
-      // persist streak on cleanup
       localStorage.setItem('allOnDeckStreak', streak.toString());
     };
-  }, [goals]);
+  }, [goals, streak]);
 
   // ── Goal CRUD ──
   const restoreGoals = useCallback(() => {
@@ -543,22 +528,6 @@ function AppInner() {
     localStorage.setItem('allOnDeckSound', next.toString());
   };
 
-  const toggleNotifications = async () => {
-    if (!('Notification' in window)) {
-      alert('Notifications are not supported on this device.');
-      return;
-    }
-    if (notificationsEnabled) {
-      setNotificationsEnabled(false);
-      return;
-    }
-    const token = await requestNotificationPermission();
-    if (token) {
-      setNotificationsEnabled(true);
-      showLocalNotification('Milestone Mindset', 'Reminders enabled! You\'ll be notified about deadlines.');
-    }
-  };
-
   // ── Export / Import ──
   const exportData = () => {
     const data = {
@@ -606,7 +575,7 @@ function AppInner() {
         if (data.streak) setStreak(data.streak);
         if (data.dailyGoals) setDailyGoals(data.dailyGoals);
         if (data.dailyGoalHistory) setDailyGoalHistory(data.dailyGoalHistory);
-      } catch (err) {
+      } catch {
         alert('Invalid backup file');
       }
     };

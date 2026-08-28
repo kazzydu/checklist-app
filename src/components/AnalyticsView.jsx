@@ -3,7 +3,6 @@ import { useMemo } from 'react';
 
 export default function AnalyticsView({
   goals = [],
-  checkedItems = {},
   completionLog = [],
   streak = 0,
   currentWeek = 1,
@@ -56,7 +55,7 @@ export default function AnalyticsView({
     const goalStats = goals.map(goal => {
       let gTotal = 0;
       let gDone = 0;
-      let gMilestonesTotal = goal.milestones.length;
+      const gMilestonesTotal = goal.milestones.length;
       let gMilestonesDone = 0;
 
       goal.milestones.forEach(m => {

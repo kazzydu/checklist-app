@@ -135,7 +135,7 @@ export const playCompleteSound = () => {
     gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.4);
     osc.start(audioCtx.currentTime);
     osc.stop(audioCtx.currentTime + 0.4);
-  } catch (e) {}
+  } catch {}
 };
 
 export const BUILTIN_TEMPLATES = [

@@ -7,7 +7,7 @@ function formatTodayDate() {
   return `${days[now.getDay()]}, ${months[now.getMonth()]} ${now.getDate()}`;
 }
 
-export default function TodayScreen({ goals, currentWeek, onToggleTask, darkMode, streak, completionLog, onNavigate }) {
+export default function TodayScreen({ goals, currentWeek, onToggleTask, darkMode, streak }) {
   const weekTasks = [];
   let totalWeekTasks = 0;
   let completedWeekTasks = 0;

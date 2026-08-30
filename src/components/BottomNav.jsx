@@ -1,10 +1,11 @@
-import { Home, Sun, Target, BarChart3 } from 'lucide-react';
+import { Home, Sun, Target, BarChart3, MessageCircle } from 'lucide-react';
 
 const tabs = [
   { id: 'home', label: 'Home', Icon: Home },
   { id: 'today', label: 'Today', Icon: Sun },
   { id: 'goals', label: 'Goals', Icon: Target },
   { id: 'analytics', label: 'Analytics', Icon: BarChart3 },
+  { id: 'chat', label: 'Chat', Icon: MessageCircle },
 ];
 
 export default function BottomNav({ active, onNavigate, darkMode }) {

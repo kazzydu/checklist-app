@@ -156,8 +156,6 @@ function AppInner() {
     }
   }, []);
 
-  const pushLocalToCloudRef = useRef(false);
-
   // ── Handle redirect result on mount ──
   useEffect(() => {
     handleRedirectResult().catch(() => {});
@@ -174,14 +172,18 @@ function AppInner() {
             if (data.goals && data.goals.length > 0) {
               setGoals(data.goals);
               saveStoredGoals(data.goals);
-            } else if (data.goals && data.goals.length === 0 && !pushLocalToCloudRef.current) {
-              // Cloud is empty — push local goals UP to cloud (once)
-              const local = JSON.parse(localStorage.getItem('msm_goals') || '[]');
-              if (local.length > 0) {
-                setGoals(local);
-                pushLocalToCloudRef.current = true;
-                saveUserData(u.uid, { goals: local });
-              }
+            } else if (data.goals && data.goals.length === 0) {
+              // New user — start fresh with empty state
+              setGoals([]);
+              saveStoredGoals([]);
+              setCheckedItems({});
+              setCompletionLog([]);
+              setStreak(0);
+              setGpaCurrent('');
+              setGpaTarget('');
+              setGpaHistory([]);
+              setDailyGoals([]);
+              setDailyGoalHistory({});
             }
             if (data.completionLog) setCompletionLog(data.completionLog);
             if (data.gpaCurrent) setGpaCurrent(data.gpaCurrent);

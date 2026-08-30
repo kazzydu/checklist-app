@@ -1,10 +1,10 @@
-import { Home, Sun, Target, BarChart3, MessageCircle } from 'lucide-react';
+import { Home, Sun, Target, BarChart3, MessageCircle, FolderOpen } from 'lucide-react';
 
 const tabs = [
   { id: 'home', label: 'Home', Icon: Home },
   { id: 'today', label: 'Today', Icon: Sun },
   { id: 'goals', label: 'Goals', Icon: Target },
-  { id: 'analytics', label: 'Analytics', Icon: BarChart3 },
+  { id: 'documents', label: 'Docs', Icon: FolderOpen },
   { id: 'chat', label: 'Chat', Icon: MessageCircle },
 ];
 

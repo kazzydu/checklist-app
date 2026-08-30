@@ -21,6 +21,7 @@ import Logo from './components/Logo';
 import ChatList from './components/ChatList';
 import ChatView from './components/ChatView';
 import ChannelCreate from './components/ChannelCreate';
+import Documents from './components/Documents';
 import { setOnline } from './firebase/messaging';
 
 const getStoredDuration = () => parseInt(localStorage.getItem('msm_duration') || '3', 10);
@@ -1138,6 +1139,11 @@ function AppInner() {
             darkMode={darkMode}
             lang={lang}
           />
+        )}
+
+        {/* ── Documents ── */}
+        {activeTab === 'documents' && !selectedChannel && !showChannelCreate && user && (
+          <Documents user={user} darkMode={darkMode} />
         )}
 
         {/* ── Chat ── */}

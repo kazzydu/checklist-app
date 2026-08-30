@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { translations } from './i18n';
-import { signInWithGoogle, logOut, onAuthChange } from './firebase/auth';
+import { signInWithGoogle, logOut, onAuthChange, handleRedirectResult, getAuthErrorMessage } from './firebase/auth';
 import { subscribeToUserData, saveUserData } from './firebase/firestore';
 import { requestNotificationPermission, onForegroundMessage, registerServiceWorker, showLocalNotification } from './firebase/messaging';
 import { migrateIfNeeded, migrateCheckedItems, saveStoredGoals } from './data/migration';
@@ -157,6 +157,11 @@ function AppInner() {
   }, []);
 
   const pushLocalToCloudRef = useRef(false);
+
+  // ── Handle redirect result on mount ──
+  useEffect(() => {
+    handleRedirectResult().catch(() => {});
+  }, []);
 
   // ── Firebase auth listener ──
   useEffect(() => {
@@ -508,11 +513,17 @@ function AppInner() {
   }, [newGrade, newCredits]);
 
   // ── Settings actions ──
+  const [authError, setAuthError] = useState(null);
+
   const handleSignIn = async () => {
+    setAuthError(null);
     try {
       await signInWithGoogle();
     } catch (e) {
+      const msg = getAuthErrorMessage(e);
+      setAuthError(msg);
       console.error('Sign-in failed:', e);
+      setTimeout(() => setAuthError(null), 5000);
     }
   };
 
@@ -721,6 +732,19 @@ function AppInner() {
         .scrollbar-hide::-webkit-scrollbar { display: none; }
         .scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
       `}</style>
+
+      {/* ── Auth Error Banner ── */}
+      {authError && (
+        <div className="bg-red-600 text-white px-4 py-3 flex items-center justify-between gap-3 animate-fade-in-up">
+          <div className="flex items-center gap-2 min-w-0">
+            <svg viewBox="0 0 24 24" width="18" height="18" className="shrink-0" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+            <span className="text-sm font-medium">{authError}</span>
+          </div>
+          <button onClick={() => setAuthError(null)} className="shrink-0 p-1 hover:bg-red-700 rounded-lg transition-colors">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+          </button>
+        </div>
+      )}
 
       {/* ── Sign-in Banner (if not signed in) ── */}
       {!user && !selectedGoalId && !showCreateGoal && !selectedChannel && !showChannelCreate && (

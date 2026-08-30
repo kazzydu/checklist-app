@@ -1,7 +1,48 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { translations } from './i18n';
-import { signInWithGoogle, logOut, onAuthChange, handleRedirectResult, getAuthErrorMessage } from './firebase/auth';
-import { subscribeToUserData, saveUserData } from './firebase/firestore';
+import {
+  signInWithGoogle,
+  signOut,
+  getCurrentUser,
+  onAuthChange,
+  getAuthErrorMessage,
+  getRedirectResult,
+  updatePresence,
+  listenPresence,
+  updateStreak,
+  getStreak,
+  exportUserData,
+  importUserData,
+} from './firebase/auth';
+import {
+  listenGoals,
+  createGoal,
+  updateGoal,
+  deleteGoal,
+  listenMilestones,
+  createMilestone,
+  updateMilestone,
+  deleteMilestone,
+  listenTasks,
+  createTask,
+  updateTask,
+  deleteTask,
+  listenDailyGoals,
+  upsertDailyGoal,
+  listenNotifications,
+  createNotification,
+  markNotificationRead,
+  getUserProfile,
+  upsertUserProfile,
+  getUserSettings,
+  upsertUserSettings,
+  listenChannels,
+  createChannel,
+  listenMessages,
+  sendMessage,
+  toggleReaction,
+  listenMessageReactions,
+} from './firebase/firestore';
 import { requestNotificationPermission, onForegroundMessage, registerServiceWorker, showLocalNotification } from './firebase/messaging';
 import { migrateIfNeeded, migrateCheckedItems, saveStoredGoals } from './data/migration';
 import { DEFAULT_CHECKLIST_DATA, BUILTIN_TEMPLATES, playCompleteSound } from './data/constants';
@@ -162,41 +203,52 @@ function AppInner() {
     handleRedirectResult().catch(() => {});
   }, []);
 
-  // ── Firebase auth listener ──
+  // ── Supabase auth listener ──
   useEffect(() => {
     const unsubscribe = onAuthChange((u) => {
       setUser(u);
       if (u) {
-        const unsubFirestore = subscribeToUserData(u.uid, (data) => {
-          if (data) {
-            setCloudSynced(true);
-            if (data.goals && data.goals.length > 0) {
-              setGoals(data.goals);
-              saveStoredGoals(data.goals);
-            } else if (data.goals && data.goals.length === 0) {
-              // New user — start fresh with empty state
-              setGoals([]);
-              saveStoredGoals([]);
-              setCheckedItems({});
-              setCompletionLog([]);
-              setStreak(0);
-              setGpaCurrent('');
-              setGpaTarget('');
-              setGpaHistory([]);
-              setDailyGoals([]);
-              setDailyGoalHistory({});
-            }
-            if (data.completionLog) setCompletionLog(data.completionLog);
-            if (data.gpaCurrent) setGpaCurrent(data.gpaCurrent);
-            if (data.gpaTarget) setGpaTarget(data.gpaTarget);
-            if (data.gpaHistory) setGpaHistory(data.gpaHistory);
-            if (data.streak) setStreak(data.streak);
-            if (data.dailyGoals) setDailyGoals(data.dailyGoals);
-            if (data.dailyGoalHistory) setDailyGoalHistory(data.dailyGoalHistory);
-            if (data.checkedItems) setCheckedItems(data.checkedItems);
-          }
+        // User-scoped: fetch only this user's data from Supabase
+        const {
+          data: profile,
+          error: profileError,
+        } = getUserProfile(u.uid);
+        if (profileError) console.error('Profile fetch error:', profileError);
+
+        // Listen to all user-scoped tables
+        listenGoals(u.uid, (goalsData) => {
+          setGoals(goalsData || []);
+          saveStoredGoals(goalsData || []);
         });
-        return () => unsubFirestore();
+
+        listenMilestones(u.uid, (milestonesData) => {
+          // milestones data integrated into goal objects during render
+        });
+
+        listenTasks(u.uid, (tasksData) => {
+          // tasks data integrated during allTasks memo
+        });
+
+        listenDailyGoals(u.uid, (dailyGoalsData) => {
+          setDailyGoals(dailyGoalsData || []);
+        });
+
+        const { data: streakData, error: streakError } = getStreak(u.uid);
+        if (!streakError && streakData) setStreak(streakData.current_streak ?? 0);
+
+        const { data: settingsData, error: settingsError } = getUserSettings(u.uid);
+        if (!settingsError && settingsData) {
+          setDarkMode(settingsData.dark_mode ?? false);
+          setLang(settingsData.lang ?? 'en');
+          setSoundEnabled(settingsData.sound_enabled ?? true);
+          setNotificationsEnabled(settingsData.notifications_enabled ?? false);
+        }
+
+        // Presence
+        updatePresence(u.uid, true);
+        listenPresence(u.uid, () => {/* presence updates */});
+
+        setCloudSynced(true);
       } else {
         setCloudSynced(false);
       }
@@ -215,6 +267,18 @@ function AppInner() {
       window.removeEventListener("beforeunload", handleUnload);
     };
   }, [user]);
+
+  // ── Cloud sync: debounced save ──
+  useEffect(() => {
+    if (!user) return;
+    if (syncTimeoutRef.current) clearTimeout(syncTimeoutRef.current);
+    syncTimeoutRef.current = setTimeout(() => {
+      // Save user data to Supabase (user-scoped, no uid needed as RLS handles it)
+      updateStreak(user.uid, streak);
+    }, 1000);
+  }, [
+    user, streak,
+  ]);
 
   // ── Cloud sync: debounced save ──
   useEffect(() => {
@@ -366,13 +430,19 @@ function AppInner() {
         const ns = (parseInt(localStorage.getItem('allOnDeckStreak')) || 0) + 1;
         setStreak(ns);
         localStorage.setItem('allOnDeckStreak', ns.toString());
+        // Update Supabase streak (user-scoped)
+        updateStreak(user?.uid ?? '', ns).catch(console.error);
       } else {
         setStreak(1);
         localStorage.setItem('allOnDeckStreak', '1');
+        // Update Supabase streak (user-scoped)
+        updateStreak(user?.uid ?? '', 1).catch(console.error);
       }
     } else if (!lv) {
       setStreak(1);
       localStorage.setItem('allOnDeckStreak', '1');
+      // Update Supabase streak (user-scoped)
+      updateStreak(user?.uid ?? '', 1).catch(console.error);
     }
     localStorage.setItem('allOnDeckLastVisit', today);
 
@@ -521,18 +591,45 @@ function AppInner() {
   const handleSignIn = async () => {
     setAuthError(null);
     try {
-      await signInWithGoogle();
+      const { data, error } = await signInWithGoogle();
+      if (error) {
+        const msg = getAuthErrorMessage(error);
+        setAuthError(msg);
+        console.error('Sign-in failed:', error);
+        setTimeout(() => setAuthError(null), 5000);
+      }
     } catch (e) {
-      const msg = getAuthErrorMessage(e);
-      setAuthError(msg);
-      console.error('Sign-in failed:', e);
-      setTimeout(() => setAuthError(null), 5000);
+      console.error('Sign-in exception:', e);
     }
   };
 
   const handleSignOut = async () => {
     try {
-      await logOut();
+      await signOut();
+      // Reset all user data on sign-out (user-scoped clean state)
+      setGoals([]);
+      setCheckedItems({});
+      setStreak(0);
+      setGpaCurrent('');
+      setGpaTarget('');
+      setGpaHistory([]);
+      setDailyGoals([]);
+      setDailyGoalHistory({});
+      setCompletionLog([]);
+      saveStoredGoals([]);
+      if (user) {
+        // Clear user data in Supabase (RLS will handle future access)
+        importUserData(user.uid ?? '', {
+          profile: {},
+          goals: [],
+          milestones: [],
+          tasks: [],
+          dailyGoals: [],
+          streak: 0,
+          settings: {},
+          notifications: [],
+        }).catch(console.error);
+      }
     } catch (e) {
       console.error('Sign-out failed:', e);
     }
@@ -575,6 +672,7 @@ function AppInner() {
       completionLog,
       dailyGoals,
       dailyGoalHistory,
+      userId: user?.uid,
       exportDate: new Date().toISOString(),
     };
     const blob = new Blob([JSON.stringify(data, null, 2)], {
@@ -595,21 +693,54 @@ function AppInner() {
     reader.onload = (ev) => {
       try {
         const data = JSON.parse(ev.target.result);
-        if (data.goals) {
-          setGoals(data.goals);
-          saveStoredGoals(data.goals);
+        if (data.userId && user?.uid === data.userId) {
+          // User-scoped import: only import data for the logged-in user
+          if (data.goals) {
+            setGoals(data.goals);
+            saveStoredGoals(data.goals);
+          }
+          if (data.checkedItems) setCheckedItems(data.checkedItems);
+          if (data.completionLog) {
+            setCompletionLog(data.completionLog);
+            localStorage.setItem('allOnDeckCompletionLog', JSON.stringify(data.completionLog));
+          }
+          if (data.gpaCurrent) setGpaCurrent(data.gpaCurrent);
+          if (data.gpaTarget) setGpaTarget(data.gpaTarget);
+          if (data.gpaHistory) setGpaHistory(data.gpaHistory);
+          if (data.streak) setStreak(data.streak);
+          if (data.dailyGoals) setDailyGoals(data.dailyGoals);
+          if (data.dailyGoalHistory) setDailyGoalHistory(data.dailyGoalHistory);
+          // Sync to Supabase (user-scoped)
+          importUserData(user.uid ?? '', {
+            profile: data.profile || {},
+            goals: data.goals || [],
+            milestones: data.milestones || [],
+            tasks: data.tasks || [],
+            dailyGoals: data.dailyGoals || [],
+            streak: data.streak ?? 0,
+            settings: data.settings || {},
+            notifications: data.notifications || [],
+          }).catch(console.error);
+        } else if (!user?.uid) {
+          // No user signed in - import to localStorage only
+          if (data.goals) {
+            setGoals(data.goals);
+            saveStoredGoals(data.goals);
+          }
+          if (data.checkedItems) setCheckedItems(data.checkedItems);
+          if (data.completionLog) {
+            setCompletionLog(data.completionLog);
+            localStorage.setItem('allOnDeckCompletionLog', JSON.stringify(data.completionLog));
+          }
+          if (data.gpaCurrent) setGpaCurrent(data.gpaCurrent);
+          if (data.gpaTarget) setGpaTarget(data.gpaTarget);
+          if (data.gpaHistory) setGpaHistory(data.gpaHistory);
+          if (data.streak) setStreak(data.streak);
+          if (data.dailyGoals) setDailyGoals(data.dailyGoals);
+          if (data.dailyGoalHistory) setDailyGoalHistory(data.dailyGoalHistory);
+        } else {
+          alert('This backup is for a different user. Please sign in as that user first.');
         }
-        if (data.checkedItems) setCheckedItems(data.checkedItems);
-        if (data.completionLog) {
-          setCompletionLog(data.completionLog);
-          localStorage.setItem('allOnDeckCompletionLog', JSON.stringify(data.completionLog));
-        }
-        if (data.gpaCurrent) setGpaCurrent(data.gpaCurrent);
-        if (data.gpaTarget) setGpaTarget(data.gpaTarget);
-        if (data.gpaHistory) setGpaHistory(data.gpaHistory);
-        if (data.streak) setStreak(data.streak);
-        if (data.dailyGoals) setDailyGoals(data.dailyGoals);
-        if (data.dailyGoalHistory) setDailyGoalHistory(data.dailyGoalHistory);
       } catch {
         alert('Invalid backup file');
       }
@@ -645,16 +776,16 @@ function AppInner() {
         'msm_goals',
       ].forEach((k) => localStorage.removeItem(k));
       if (user) {
-        saveUserData(user.uid, {
+        // User-scoped: reset data in Supabase
+        importUserData(user.uid ?? '', {
+          profile: {},
           goals: [],
-          checkedItems: {},
-          gpaCurrent: '',
-          gpaTarget: '',
-          gpaHistory: [],
-          streak: 0,
+          milestones: [],
+          tasks: [],
           dailyGoals: [],
-          dailyGoalHistory: {},
-          completionLog: [],
+          streak: 0,
+          settings: {},
+          notifications: [],
         }).catch(console.error);
       }
     }
